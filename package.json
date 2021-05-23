@@ -1,0 +1,18 @@
+{
+	"name": "setsolver",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"start": "tsc --watch --inlineSourceMap --inlineSources",
+		"build": "tsc"
+	},
+	"keywords": [
+		"set"
+	],
+	"author": "Dennis Kats",
+	"license": "ISC",
+	"devDependencies": {
+		"typescript": "^4.2.4"
+	}
+}
