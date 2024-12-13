@@ -22,7 +22,12 @@ enum Shading {
 	OPEN = 2,
 }
 
-const SHAPE_STRINGS = ["◇", "ⸯ", "⬯"];
+const SHAPE_STRINGS = ["◇", "⌇", "⬯"];
+const COLOR_SHADING_ANSI_CODES = [
+	["\x1b[1;41m", "\x1b[1;4;9;31m", "\x1b[1;31m"], // red
+	["\x1b[1;42m", "\x1b[1;4;9;32m", "\x1b[1;32m"], // green
+	["\x1b[1;45m", "\x1b[1;4;9;35m", "\x1b[1;35m"], // purple
+];
 
 type CardId = string;
 
@@ -62,6 +67,13 @@ class Card {
 			result = this;
 		}
 		return result;
+	}
+
+	toFormatString() {
+		const shape = SHAPE_STRINGS[this.shape];
+		const shapeRepeat = shape.repeat(this.count + 1);
+		const ansiCode = COLOR_SHADING_ANSI_CODES[this.color][this.shading];
+		return `${ansiCode}${shapeRepeat}\x1b[0m`;
 	}
 }
 
@@ -146,6 +158,10 @@ type CardSet = [Card, Card, Card];
 
 class SetGrid {
 	private cards: Set<Card> = new Set();
+
+	get size(): number {
+		return this.cards.size;
+	}
 
 	[Symbol.iterator] = this.cards.values;
 
@@ -323,6 +339,70 @@ function testExclusiveWithRows(rows: number, showSets?: boolean) {
 		showSets ? exclusive : exclusive.length
 	);
 }
+
+// const cards = [
+// 	new Card(Color.PURPLE, Shape.OVAL, Shading.SOLID, Count.ONE),
+// 	new Card(Color.GREEN, Shape.OVAL, Shading.SOLID, Count.ONE),
+// 	new Card(Color.RED, Shape.OVAL, Shading.STRIPED, Count.THREE),
+// 	new Card(Color.GREEN, Shape.SQUIGGLE, Shading.OPEN, Count.ONE),
+// 	new Card(Color.GREEN, Shape.DIAMOND, Shading.OPEN, Count.TWO),
+// 	new Card(Color.PURPLE, Shape.OVAL, Shading.STRIPED, Count.ONE),
+// 	new Card(Color.PURPLE, Shape.OVAL, Shading.OPEN, Count.ONE),
+// 	new Card(Color.GREEN, Shape.SQUIGGLE, Shading.SOLID, Count.ONE),
+// 	new Card(Color.GREEN, Shape.DIAMOND, Shading.STRIPED, Count.TWO),
+// 	new Card(Color.PURPLE, Shape.DIAMOND, Shading.SOLID, Count.TWO),
+// 	new Card(Color.RED, Shape.OVAL, Shading.SOLID, Count.ONE),
+// 	new Card(Color.RED, Shape.SQUIGGLE, Shading.SOLID, Count.THREE),
+// ];
+
+// const result1 = SetSolver.getAllSets(cards);
+// const result2 = SetSolver.getMaxExclusiveSets(cards);
+
+function compareCards(c1: Card, c2: Card): number {
+	const numberCompare = c1.count - c2.count;
+	if (numberCompare !== 0) return numberCompare;
+	const colorCompare = c1.color - c2.color;
+	if (colorCompare !== 0) return colorCompare;
+	const shapeCompare = c1.shape - c2.shape;
+	if (shapeCompare !== 0) return shapeCompare;
+	return c1.shading - c2.shading;
+}
+
+function toCardSets(arr: Card[]): CardSet[] {
+	const result: CardSet[] = [];
+	for (let i = 0; i < arr.length; i += SetGame.SET_SIZE) {
+		result.push(arr.slice(i, i + SetGame.SET_SIZE) as CardSet);
+	}
+	return result;
+}
+
+function formatCardSet(set: CardSet) {
+	const [c1, c2, c3] = set.toSorted(compareCards);
+	return `[${c1.toFormatString()}, ${c2.toFormatString()}, ${c3.toFormatString()}]`;
+}
+
+function formatSetGrid(sg: SetGrid) {
+	const allCards = sg.getAllCards();
+	// chunk into rows of 3
+	const rows = toCardSets(allCards);
+	return `[${rows.map(formatCardSet).join(",\n")}]`;
+}
+
+function formatCardSetList(cardSets: CardSet[]) {
+	return `[${cardSets.map(formatCardSet).join(",\n")}]`;
+}
+
+const sg = SetGrid.createRandomGrid(6);
+const allCards = sg.getAllCards();
+const exclusive = SetSolver.getMaxExclusiveSets(allCards);
+
+console.log("All Cards:");
+console.log(formatSetGrid(sg), sg.size, "\n");
+console.log("All Sets:");
+console.log(formatCardSetList(exclusive), exclusive.length);
+
+// console.log(formatCardSetList(result1), result1.length, '\n');
+// console.log(formatCardSetList(result2), result2.length);
 
 // testExclusiveWithRows(3);
 // testExclusiveWithRows(5, true);
