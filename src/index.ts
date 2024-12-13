@@ -4,11 +4,15 @@ enum Color {
 	PURPLE = 2,
 }
 
+const color2string = ["red", "green", "purple"];
+
 enum Shape {
 	DIAMOND = 0,
 	SQUIGGLE = 1,
 	OVAL = 2,
 }
+
+const shape2string = ["diamond", "squiggle", "oval"];
 
 enum Count {
 	ONE = 0,
@@ -16,14 +20,19 @@ enum Count {
 	THREE = 2,
 }
 
+const count2string = ["one", "two", "three"];
+
 enum Shading {
 	SOLID = 0,
 	STRIPED = 1,
-	OPEN = 2,
+	OUTLINE = 2,
 }
 
-const SHAPE_STRINGS = ["◇", "⌇", "⬯"];
+const shading2string = ["solid", "striped", "outline"];
+
+const SHAPE_STRINGS = ["◇", "}", "⬯"];
 const COLOR_SHADING_ANSI_CODES = [
+	// solid            striped          open
 	["\x1b[1;41m", "\x1b[1;4;9;31m", "\x1b[1;31m"], // red
 	["\x1b[1;42m", "\x1b[1;4;9;32m", "\x1b[1;32m"], // green
 	["\x1b[1;45m", "\x1b[1;4;9;35m", "\x1b[1;35m"], // purple
@@ -71,9 +80,29 @@ class Card {
 
 	toFormatString() {
 		const shape = SHAPE_STRINGS[this.shape];
-		const shapeRepeat = shape.repeat(this.count + 1);
+
+		const patterns = [" * ", "* *", "***"];
+		const pattern = patterns[this.count];
+
 		const ansiCode = COLOR_SHADING_ANSI_CODES[this.color][this.shading];
-		return `${ansiCode}${shapeRepeat}\x1b[0m`;
+		const symbol = `${ansiCode}${shape}\x1b[0m`;
+
+		const symbols = pattern.replaceAll("*", symbol);
+		const card = `[${symbols}]`;
+
+		return card;
+
+		// const visibleLength = this.count + 1;
+		// const totalPadding = 3 - visibleLength;
+		// const padStart = Math.floor(totalPadding / 2);
+		// const padEnd = totalPadding - padStart;
+
+		// const shapeRepeat = shape.repeat(visibleLength);
+		// const ansiCode = COLOR_SHADING_ANSI_CODES[this.color][this.shading];
+		// const symbols = `${ansiCode}${shapeRepeat}\x1b[0m`;
+		// const card = `[${" ".repeat(padStart)}${symbols}${" ".repeat(padEnd)}]`;
+
+		// return card;
 	}
 }
 
@@ -376,29 +405,95 @@ function toCardSets(arr: Card[]): CardSet[] {
 	return result;
 }
 
-function formatCardSet(set: CardSet) {
+function formatCardSet([c1, c2, c3]: CardSet) {
+	return `${c1.toFormatString()} ${c2.toFormatString()} ${c3.toFormatString()}`;
+}
+
+// function formatCardSetWithSorting(set: CardSet) {
+// 	return formatCardSet(set.toSorted(compareCards) as CardSet);
+// }
+
+function formatCardSetAsSortedSet(set: CardSet) {
 	const [c1, c2, c3] = set.toSorted(compareCards);
-	return `[${c1.toFormatString()}, ${c2.toFormatString()}, ${c3.toFormatString()}]`;
+	return `<${c1.toFormatString()} ${c2.toFormatString()} ${c3.toFormatString()}>`;
+}
+
+function formatCardSetAsSortedSetWithExplanation(set: CardSet): [string, string[]] {
+	if (!SetSolver.isValidSet(...set)) throw new Error("Invalid Set");
+
+	const [c1, c2, c3] = set.toSorted(compareCards);
+
+	const colorStr =
+		c1.color === c2.color
+			? `All colors are the same: ${color2string[c1.color]}.`
+			: `All colors are different: ${color2string[c1.color]}, ${color2string[c2.color]}, ${
+					color2string[c3.color]
+			  }.`;
+
+	const shapeStr =
+		c1.shape === c2.shape
+			? `All shapes are the same: ${shape2string[c1.shape]}.`
+			: `All shapes are different: ${shape2string[c1.shape]}, ${shape2string[c2.shape]}, ${
+					shape2string[c3.shape]
+			  }.`;
+
+	const shadingStr =
+		c1.shading === c2.shading
+			? `All shadings are the same: ${shading2string[c1.shading]}.`
+			: `All shadings are different: ${shading2string[c1.shading]}, ${
+					shading2string[c2.shading]
+			  }, ${shading2string[c3.shading]}.`;
+
+	const countStr =
+		c1.count === c2.count
+			? `All counts are the same: ${count2string[c1.count]}.`
+			: `All counts are different: ${count2string[c1.count]}, ${count2string[c2.count]}, ${
+					count2string[c3.count]
+			  }.`;
+
+	const explanation = [colorStr, shapeStr, shadingStr, countStr];
+
+	return [formatCardSet([c1, c2, c3]), explanation];
 }
 
 function formatSetGrid(sg: SetGrid) {
 	const allCards = sg.getAllCards();
 	// chunk into rows of 3
 	const rows = toCardSets(allCards);
-	return `[${rows.map(formatCardSet).join(",\n")}]`;
+	return `${rows.map(formatCardSet).join("\n")}`;
 }
 
 function formatCardSetList(cardSets: CardSet[]) {
-	return `[${cardSets.map(formatCardSet).join(",\n")}]`;
+	return `${cardSets.map(formatCardSetAsSortedSet).join("\n")}`;
 }
 
-const sg = SetGrid.createRandomGrid(6);
+function logCardSetWithExplanation(set: CardSet) {
+	const [formatted, explanation] = formatCardSetAsSortedSetWithExplanation(set);
+	console.group(formatted);
+	for (const line of explanation) {
+		console.log(line);
+	}
+	console.groupEnd();
+}
+
+function logCardSetListWithExplanations(sets: CardSet[]) {
+	for (const set of sets) {
+		logCardSetWithExplanation(set);
+	}
+}
+
+const sg = SetGrid.createRandomGrid(4);
 const allCards = sg.getAllCards();
-const exclusive = SetSolver.getMaxExclusiveSets(allCards);
 
 console.log("All Cards:");
-console.log(formatSetGrid(sg), sg.size, "\n");
+console.log(formatSetGrid(sg));
+
+const allSets = SetSolver.getAllSets(allCards);
 console.log("All Sets:");
+logCardSetListWithExplanations(allSets);
+
+const exclusive = SetSolver.getMaxExclusiveSets(allCards);
+console.log("Max Mutually Exclusive Sets:");
 console.log(formatCardSetList(exclusive), exclusive.length);
 
 // console.log(formatCardSetList(result1), result1.length, '\n');
